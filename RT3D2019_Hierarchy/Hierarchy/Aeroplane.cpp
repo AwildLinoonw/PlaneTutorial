@@ -62,29 +62,31 @@ void Aeroplane::UpdateMatrices(void)
 {
 	XMMATRIX mRotX, mRotY, mRotZ, mTrans;
 	XMMATRIX mPlaneCameraRot, mForwardMatrix;
-	XMMATRIX mLocalGun, mLocalTurret, mLocalProp;
+	XMMATRIX mLocalGun, mLocalTurret, mLocalProp, mLocalCam;
 	// [START HERE]
 
 	// Calculate m_mWorldMatrix for plane based on Euler rotation angles and position data.
 	// i.e. Use XMMatrixRotationX(), XMMatrixRotationY(), XMMatrixRotationZ() and XMMatrixTranslationFromVector to calculate mRotX, mRotY, mRotZ and mTrans from m_v4Rot
 	// Then concatenate the matrices to calculate m_mWorldMatrix
 	
-	mRotX = XMMatrixRotationX(m_v4Rot.x);
-	mRotY = XMMatrixRotationY(m_v4Rot.y);
-	mRotZ = XMMatrixRotationZ(m_v4Rot.z);
+	mRotX = XMMatrixRotationX(XMConvertToRadians(m_v4Rot.x));
+	mRotY = XMMatrixRotationY(XMConvertToRadians(m_v4Rot.y));
+	mRotZ = XMMatrixRotationZ(XMConvertToRadians(m_v4Rot.z));
 	mTrans = XMMatrixTranslationFromVector(XMLoadFloat4(&m_v4Pos));
 	m_mWorldMatrix = mRotX * mRotY * mRotZ * mTrans;
 
 	// [Skip this step first time through] Also calculate mPlaneCameraRot which ignores rotations in Z and X for the camera to parent to
+	mPlaneCameraRot = mRotY * mTrans;
 
 	// [Skip this step first time through] Get the forward vector out of the world matrix and put it in m_vForwardVector
+	m_vForwardVector = m_mWorldMatrix.r[2];
 
 	// Calculate m_mPropWorldMatrix for propeller based on Euler rotation angles and position data.
 	// Parent the propeller to the plane
 
-	mRotX = XMMatrixRotationX(m_v4PropRot.x);
-	mRotY = XMMatrixRotationY(m_v4PropRot.y);
-	mRotZ = XMMatrixRotationZ(m_v4PropRot.z);
+	mRotX = XMMatrixRotationX(XMConvertToRadians(m_v4PropRot.x));
+	mRotY = XMMatrixRotationY(XMConvertToRadians(m_v4PropRot.y));
+	mRotZ = XMMatrixRotationZ(XMConvertToRadians(m_v4PropRot.z));
 	mTrans = XMMatrixTranslationFromVector(XMLoadFloat4(&m_v4PropOff));
 	mLocalProp = mRotX * mRotY * mRotZ * mTrans;
 	m_mPropWorldMatrix = mLocalProp * m_mWorldMatrix;
@@ -92,9 +94,9 @@ void Aeroplane::UpdateMatrices(void)
 	// Calculate m_mTurretWorldMatrix for propeller based on Euler rotation angles and position data.
 	// Parent the turret to the plane
 
-	mRotX = XMMatrixRotationX(m_v4TurretRot.x);
-	mRotY = XMMatrixRotationY(m_v4TurretRot.y);
-	mRotZ = XMMatrixRotationZ(m_v4TurretRot.z);
+	mRotX = XMMatrixRotationX(XMConvertToRadians(m_v4TurretRot.x));
+	mRotY = XMMatrixRotationY(XMConvertToRadians(m_v4TurretRot.y));
+	mRotZ = XMMatrixRotationZ(XMConvertToRadians(m_v4TurretRot.z));
 	mTrans = XMMatrixTranslationFromVector(XMLoadFloat4(&m_v4TurretOff));
 	mLocalTurret = mRotX * mRotY * mRotZ * mTrans;
 	m_mTurretWorldMatrix = mLocalTurret * m_mWorldMatrix;
@@ -102,18 +104,33 @@ void Aeroplane::UpdateMatrices(void)
 	// Calculate m_mGunWorldMatrix for gun based on Euler rotation angles and position data.
 	// Parent the gun to the turret
 
-	mRotX = XMMatrixRotationX(m_v4GunRot.x);
-	mRotY = XMMatrixRotationY(m_v4GunRot.y);
-	mRotZ = XMMatrixRotationZ(m_v4GunRot.z);
+	mRotX = XMMatrixRotationX(XMConvertToRadians(m_v4GunRot.x));
+	mRotY = XMMatrixRotationY(XMConvertToRadians(m_v4GunRot.y));
+	mRotZ = XMMatrixRotationZ(XMConvertToRadians(m_v4GunRot.z));
 	mTrans = XMMatrixTranslationFromVector(XMLoadFloat4(&m_v4GunOff));
 	mLocalGun = mRotX * mRotY * mRotZ * mTrans;
 	m_mGunWorldMatrix = mLocalGun * m_mTurretWorldMatrix;
 
 	// Calculate m_mCameraWorldMatrix for camera based on Euler rotation angles and position data.
 
+	mRotX = XMMatrixRotationX(XMConvertToRadians(m_v4CamRot.x));
+	mRotY = XMMatrixRotationY(XMConvertToRadians(m_v4CamRot.y));
+	mRotZ = XMMatrixRotationZ(XMConvertToRadians(m_v4CamRot.z));
+	mTrans = XMMatrixTranslationFromVector(XMLoadFloat4(&m_v4CamOff));
+	mLocalCam = mRotX * mRotY * mRotZ * mTrans;
 	// [Skip this step first time through] Switch between parenting the camera to the plane (without X and Z rotations) and the gun based on m_bGunCam
+	if (m_bGunCam)
+	{
+		m_mCamWorldMatrix = mLocalCam * m_mGunWorldMatrix;
+	}
+	else
+	{
+		m_mCamWorldMatrix = mLocalCam * mPlaneCameraRot;
+	}
+
 
 	// Get the camera's world position (m_vCamWorldPos) out of m_mCameraWorldMatrix
+	m_vCamWorldPos = m_mCamWorldMatrix.r[3];
 }
 
 void Aeroplane::Update(bool bPlayerControl)
